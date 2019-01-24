@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<!-- version d3.js version 4 -->
+<script src="https://d3js.org/d3.v4.min.js"></script>
+
+<style>
+
+body { font: 12px Arial;}
+
+path {
+    fill: none;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: black;
+}
+
+.infos {
+    font-size: 12px;
+    font-style: italic;
+    text-anchor: right;
+}
+
+</style>
+<body>
+
+<script>
+
+// Configurer la dimension du graphe
+var marge = {top: 100, right: 0, bottom: 20, left: 200},
+    width = 600 - marge.left - marge.right,
+    height = 300 - marge.top - marge.bottom;
+
+var date = d3.timeParse("%b %Y");
+
+var x = d3.scaleTime().range([0, width]);
+var y = d3.scaleLinear().range([height, 0]);
+
+var prix = d3.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d.price); });
+
+var svg = d3.select("body")
+    .append("svg")
+        .attr("width", width + marge.left + marge.right)
+        .attr("height", height + marge.top + marge.bottom)
+    .append("g")
+        .attr("transform",
+              "translate(" + marge.left + "," + marge.top + ")");
+
+// extraction des donnees csv
+d3.csv("stocks.csv", function(data) {
+    data.forEach(function(d) {
+		d.date = date(d.date);
+		d.price = +d.price;
+    });
+
+    x.domain(d3.extent(data, function(d) { return d.date; }));
+    y.domain([0, d3.max(data, function(d) { return d.price; })]);
+
+    // Insertion des donnees
+    var dataNest = d3.nest()
+        .key(function(d) {return d.symbol;})
+        .entries(data);
+
+    // couleurs
+    var color = d3.scaleOrdinal(d3.schemeCategory20c);
+
+    espace = 50; // distance pour nom de marque
+
+
+    dataNest.forEach(function(d,i) {
+      svg.append("text")
+          .attr("x", (espace/2)+i*espace)  // distance entre marques dans legende
+          .attr("y", 0)
+          .attr("class", "infos")
+          .style("fill", function() {
+              return d.color = color(d.key); })// ajout de couleurs
+          .text(d.key);
+
+        svg.append("path")
+            .attr("class", "line")
+            .style("stroke", function() {
+                return d.color = color(d.key); })// ajout de couleurs
+            .attr("d", prix(d.values));
+
+    });
+
+  svg.append("g")
+      .attr("class", "axis")
+      .call(d3.axisLeft(y));
+
+});
+
+</script>
+</body>

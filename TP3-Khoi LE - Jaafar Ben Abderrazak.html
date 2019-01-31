@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Bar charts everywhere</title>
+        <style type="text/css">
+      body {
+          font-family: Arial;
+        }
+        </style>
+
+    </head>
+    <body>
+        <script src="http://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+        <script type="text/javascript">
+
+      var margin = {top: 30, right: 0, bottom: 20, left: 20};
+      var width = 960 - margin.left - margin.right;
+      var height = 500 - margin.top - margin.bottom;
+      var duration = 800;
+
+      var svg = d3.select("body")
+      .append("svg")
+      .attr("width",width+margin.left+margin.right)
+      .attr("height",height+margin.bottom+margin.top)
+
+      var g = svg.append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var color = d3.scaleOrdinal()
+      .domain(["MSFT","AMZN","IBM", "AAPL"])
+      .range(["#c1cffa", "#ffe997", "#deff97", "#ffc0cb"]);
+
+
+        d3.csv("stocks.csv", function(data) {
+
+
+        var parseDate = d3.timeParse("%b %Y");
+        var formatTime = d3.timeFormat("%Y")
+
+
+        var xchart = d3.scaleBand()
+        .range([0,width], .2);
+
+
+        var xbar = d3.scaleBand()
+          .padding(0.2)
+
+        var y = d3.scaleLinear()
+          .range([height,0]);
+
+
+
+        var ByYear = d3.nest()
+        .key(function(d){ return formatTime(parseDate(d.date));})
+        .entries(data);
+
+        var YearMean = [];
+
+        ByYear.forEach(function(Year) {
+
+          var BySymbol = d3.nest()
+          .key(function(d) {return d.symbol;})
+          .rollup(function(e) {return d3.mean(e,function(d) {return d.price;})})
+          .object(Year.values);
+
+          YearMean.push({
+            key: +Year.key,
+            values: BySymbol
+          });
+        });
+
+        var stocks = YearMean.map(function(d) {
+          var final= { year: d.key};
+          Object.keys(d.values).forEach(function(key) {
+            final[key] = d.values[key];
+          });
+
+          return final;
+
+        });
+
+        var keys = d3.keys(stocks[0]).slice(1);
+        xchart.domain(stocks.map(function(d) {return d.year}));
+        xbar.domain(keys)
+        .range([0,xchart.bandwidth()-10]);
+        y.domain([0,d3.max(stocks, function(d) {
+                            return d3.max(keys,function(symbol){
+                                              return d[symbol] })
+                                            })
+                ]);
+
+
+
+        var grouped = g.append("g")
+        .selectAll("g")
+        .data(d3.stack().keys(keys)(stocks))
+        .enter()
+        .append("g")
+        .attr("fill",function(d) {return color(d.key)});
+
+
+        var rect = grouped.selectAll("rect")
+        .data(function(d) {return d;})
+        .enter()
+        .append("rect")
+        .attr("width", xbar.bandwidth())
+        .attr("x",function(d,i) {
+          return xchart(d.data.year) + xbar(this.parentNode.__data__.key)+100;
+        })
+        .attr("y",function(d) {return y(d[1]-d[0]);})
+        .attr("height",function(d) {return y(0)-y(d[1]-d[0]);});
+        });
+
+
+      var legend = svg.selectAll(".legend")
+      .data(color.domain())
+      .enter()
+      .append("g")
+      .attr("class","legend")
+      .attr("transform",function(d,i) {
+        return "translate(" + i * 200 + ", 50)";
+      });
+
+      legend.append("path")
+      .style("fill",function(d) {return color(d);})
+      .attr("d", d3.symbol().type(d3.symbolSquare).size(120))
+      .attr("transform",function(d) {
+        return "translate (" + width/5 + "," + 10 +")";
+      })
+
+      legend.append("text")
+      .attr("x",width/4 )
+      .attr("y",10)
+      .attr("dy",".30em")
+      .text(function(d) {return d;})
+
+
+
+        </script>
+    </body>
+</html>
